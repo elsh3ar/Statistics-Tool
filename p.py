@@ -1,0 +1,309 @@
+import streamlit as st
+import numpy as np
+import scipy.stats as stats
+import matplotlib.pyplot as plt
+
+# --- Page Configuration ---
+st.set_page_config(page_title="Statistics Tool - Dr. Mohamed Sobh ", layout="wide")
+
+# --- Header Section ---
+def draw_header():
+    col1, col2 = st.columns([1, 5])
+    with col1:
+    
+        st.image("dr_mohamed.png", width=200) 
+    with col2:
+        st.title("Advanced Statistics & Probability Tool")
+        st.subheader("Under Supervision of: Dr. Mohamed Sobh")
+        st.markdown("### **By Student: Ahmed Elshaar**")
+    st.divider()
+
+draw_header()
+
+# --- Advanced Plotting Engine (Fixed Two-Tailed Visualization) ---
+def plot_statistics(dist_type, test_stat, critical_val, alpha, tail_type, df=None, mode="Testing"):
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    # 1. Define Distribution Range
+    if dist_type == "z":
+        x = np.linspace(-4, 4, 1000)
+        y = stats.norm.pdf(x, 0, 1)
+        dist_label = "Standard Normal Distribution (Z)"
+    elif dist_type == "t":
+        x = np.linspace(-4, 4, 1000)
+        y = stats.t.pdf(x, df)
+        dist_label = f"t-Distribution (df={df})"
+    else: # Chi-Square
+        upper_limit = max(30, (critical_val if critical_val else 10) * 1.5)
+        x = np.linspace(0, upper_limit, 1000)
+        y = stats.chi2.pdf(x, df)
+        dist_label = f"Chi-Square Distribution (df={df})"
+
+    ax.plot(x, y, 'black', lw=2, label=dist_label)
+    
+    # 2. Fix: Visualization for Two-Tailed and One-Tailed
+    if "Two" in tail_type:
+        cv = abs(critical_val)
+        # Shading both sides
+        ax.fill_between(x, y, where=(x > cv), color='red', alpha=0.4, label='Rejection Region' if mode=="Testing" else "Outside CI")
+        ax.fill_between(x, y, where=(x < -cv), color='red', alpha=0.4)
+        # Drawing both critical lines
+        ax.axvline(cv, color='red', linestyle='--', lw=2)
+        ax.axvline(-cv, color='red', linestyle='--', lw=2)
+        # Adding labels for both numbers
+        ax.text(cv, max(y)*0.2, f'+{cv:.3f}', color='red', fontweight='bold', ha='left')
+        ax.text(-cv, max(y)*0.2, f'-{cv:.3f}', color='red', fontweight='bold', ha='right')
+        
+    elif "Right" in tail_type or ">" in tail_type:
+        ax.fill_between(x, y, where=(x > critical_val), color='red', alpha=0.4, label='Rejection Region' if mode=="Testing" else "Outside CI")
+        ax.axvline(critical_val, color='red', linestyle='--', lw=2)
+        ax.text(critical_val, max(y)*0.2, f'{critical_val:.3f}', color='red', fontweight='bold', ha='left')
+        
+    elif "Left" in tail_type or "<" in tail_type:
+        ax.fill_between(x, y, where=(x < critical_val), color='red', alpha=0.4, label='Rejection Region' if mode=="Testing" else "Outside CI")
+        ax.axvline(critical_val, color='red', linestyle='--', lw=2)
+        ax.text(critical_val, max(y)*0.2, f'{critical_val:.3f}', color='red', fontweight='bold', ha='right')
+
+    # 3. Mark Test Statistic
+    if mode == "Testing":
+        ax.axvline(test_stat, color='green', linestyle='-', lw=3, label=f'Test Stat: {test_stat:.3f}')
+        ax.scatter([test_stat], [0.005], color='green', s=100, zorder=5)
+        # Indicate decision visually
+        ax.annotate(f'Test Value: {test_stat:.2f}', xy=(test_stat, 0.01), xytext=(test_stat, max(y)*0.8),
+                     arrowprops=dict(facecolor='green', shrink=0.05), color='green', fontweight='bold', ha='center')
+    
+    ax.set_title(f"Statistical Distribution Plot ({tail_type})", fontsize=15)
+    ax.set_xlabel("Value")
+    ax.set_ylabel("Density")
+    ax.legend()
+    st.pyplot(fig)
+
+# --- Decision Logic Helper ---
+def display_decision(p_val, alpha, test_stat, crit_val, tail):
+    st.write(f"---")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Test Statistic (Calculated)", f"{test_stat:.4f}")
+        st.metric("P-Value", f"{p_val:.4f}")
+    with col2:
+        if p_val < alpha:
+            st.error("Decision: REJECT H0")
+            st.warning("Result: STATISTICALLY SIGNIFICANT")
+        else:
+            st.success("Decision: FAIL TO REJECT H0 (ACCEPT)")
+            st.info("Result: NOT STATISTICALLY SIGNIFICANT")
+
+# --- Main Navigation ---
+main_choice = st.radio("Select Process:", ["Confidence Interval", "Hypothesis Testing"], horizontal=True)
+
+# ---------------------------------------------------------
+# 1. CONFIDENCE INTERVAL SECTION
+# ---------------------------------------------------------
+if main_choice == "Confidence Interval":
+    st.header("📍 Confidence Interval Mode")
+    param = st.selectbox("Select Parameter:", ["Mean", "Variance", "Proportion"])
+    n, x_bar, std_dev, s_sq, p_hat, calculated = 0, 0, 0, 0, 0, False
+
+    if param == "Mean":
+        sigma_known = st.radio("Is Sigma (σ) Known?", ["Yes", "No"])
+        input_way = st.radio("Input Method:", ["Summary Statistics", "Raw Data Input"])
+        if input_way == "Summary Statistics":
+            x_bar = st.number_input("Mean (x̄):")
+            val = st.number_input("Dispersion (s or σ):", value=1.0)
+            is_sq = st.checkbox("Is this value Squared (Variance)?")
+            std_dev = np.sqrt(val) if is_sq else val
+            n = st.number_input("n:", min_value=1, value=30)
+        else:
+            raw_meth = st.radio("Format:", ["Values", "Sums"])
+            if raw_meth == "Values":
+                raw = st.text_input("Data (comma separated):")
+                if raw:
+                    data = [float(i) for i in raw.split(",")]
+                    n = len(data); sx = sum(data); sx2 = sum([i**2 for i in data])
+                    x_bar = sx / n; s_sq = (sx2 - (sx**2 / n)) / (n - 1); std_dev = np.sqrt(s_sq)
+            else:
+                sx, sx2, n = st.number_input("Σx:"), st.number_input("Σx²:"), st.number_input("n:", min_value=2, value=10)
+                x_bar = sx/n; s_sq = (sx2 - (sx**2/n))/(n-1); std_dev = np.sqrt(s_sq)
+
+        cl = st.slider("Confidence Level:", 0.80, 0.99, 0.95)
+        if st.button("Calculate CI"):
+            alpha = 1-cl; use_dist = "z" if (sigma_known=="Yes" or n>=30) else "t"
+            crit = stats.norm.ppf(1-alpha/2) if use_dist=="z" else stats.t.ppf(1-alpha/2, n-1)
+            margin = crit * (std_dev / np.sqrt(n))
+            st.success(f"CI: ({x_bar - margin:.4f} , {x_bar + margin:.4f})")
+            plot_statistics(use_dist, x_bar, crit, alpha, "Two-Tailed", df=n-1 if use_dist=="t" else None, mode="CI")
+            calculated = True
+
+    elif param == "Variance":
+        v_input = st.radio("Input Method:", ["Summary", "Raw Data Input"])
+        if v_input == "Summary":
+            v_val = st.number_input("s:", value=1.0)
+            s_sq = v_val if st.checkbox("Is Squared (s²)?") else v_val**2
+            n = st.number_input("n:", min_value=2, value=10)
+        else:
+            raw_meth = st.radio("Format:", ["Values", "Sums"], key="vraw")
+            if raw_meth == "Values":
+                raw = st.text_input("Data:", key="vtxt")
+                if raw: 
+                    data = [float(i) for i in raw.split(",")]
+                    n = len(data); sx = sum(data); sx2 = sum([i**2 for i in data])
+                    s_sq = (sx2 - (sx**2 / n)) / (n - 1)
+            else:
+                sx, sx2, n = st.number_input("Σx:"), st.number_input("Σx²:"), st.number_input("n:", min_value=2, value=10)
+                s_sq = (sx2 - (sx**2/n))/(n-1)
+
+        cl = st.slider("Confidence Level:", 0.80, 0.99, 0.95)
+        if st.button("Calculate CI"):
+            alpha = 1-cl; c1, c2 = stats.chi2.ppf(alpha/2, n-1), stats.chi2.ppf(1-alpha/2, n-1)
+            st.success(f"Variance CI: ({((n-1)*s_sq)/c2:.4f} , {((n-1)*s_sq)/c1:.4f})")
+            plot_statistics("chi2", s_sq, c2, alpha, "Right-Tailed", df=n-1, mode="CI")
+            calculated = True
+
+    elif param == "Proportion":
+        p_hat_method = st.radio("How to provide p̂?", ["Directly", "From x and n"])
+        if p_hat_method == "Directly":
+            p_hat = st.number_input("p̂:", 0.0, 1.0, step=0.01)
+            n = st.number_input("n:", min_value=1, value=100)
+        else:
+            x_count = st.number_input("x:", min_value=0)
+            n = st.number_input("n:", min_value=1, value=100)
+            p_hat = x_count / n if n > 0 else 0
+        
+        cl = st.slider("Confidence Level:", 0.80, 0.99, 0.95)
+        if st.button("Calculate CI"):
+            alpha = 1-cl; crit = stats.norm.ppf(1-alpha/2)
+            margin = crit * np.sqrt((p_hat*(1-p_hat))/n)
+            st.success(f"Proportion CI: ({p_hat - margin:.4f} , {p_hat + margin:.4f})")
+            plot_statistics("z", p_hat, crit, alpha, "Two-Tailed", mode="CI")
+            calculated = True
+
+    if calculated:
+        st.divider()
+        if st.checkbox("🔗 Link to Hypothesis Test"):
+            h1 = st.radio("H1:", ["Two-Tailed (≠)", "Right-Tailed (>)", "Left-Tailed (<)"], horizontal=True)
+            alpha_test = st.number_input("Significance α:", 0.01, 0.10, 0.05, key="link_alpha")
+            
+            if param == "Mean":
+                mu0 = st.number_input("Null Mean μ0:")
+                if st.button("Run Linked Test"):
+                    dist = "z" if (sigma_known=="Yes" or n>=30) else "t"; df = n-1 if dist=="t" else None
+                    z_t = (x_bar - mu0)/(std_dev/np.sqrt(n))
+                    if "Two" in h1: 
+                        p = 2*(1-stats.norm.cdf(abs(z_t))) if dist=="z" else 2*(1-stats.t.cdf(abs(z_t), df))
+                        crit = stats.norm.ppf(1-alpha_test/2) if dist=="z" else stats.t.ppf(1-alpha_test/2, df)
+                    elif ">" in h1: 
+                        p = 1-stats.norm.cdf(z_t) if dist=="z" else 1-stats.t.cdf(z_t, df)
+                        crit = stats.norm.ppf(1-alpha_test) if dist=="z" else stats.t.ppf(1-alpha_test, df)
+                    else: 
+                        p = stats.norm.cdf(z_t) if dist=="z" else stats.t.cdf(z_t, df)
+                        crit = stats.norm.ppf(alpha_test) if dist=="z" else stats.t.ppf(alpha_test, df)
+                    display_decision(p, alpha_test, z_t, crit, h1)
+                    plot_statistics(dist, z_t, crit, alpha_test, h1, df, mode="Testing")
+
+            elif param == "Variance":
+                v0 = st.number_input("Null Variance σ0²:")
+                if st.button("Run Linked Test"):
+                    chi = ((n-1)*s_sq)/v0
+                    crit = stats.chi2.ppf(1-alpha_test if ">" in h1 else alpha_test, n-1)
+                    p = 1-stats.chi2.cdf(chi, n-1) if ">" in h1 else stats.chi2.cdf(chi, n-1)
+                    display_decision(p, alpha_test, chi, crit, h1)
+                    plot_statistics("chi2", chi, crit, alpha_test, h1, n-1, mode="Testing")
+
+            elif param == "Proportion":
+                p0_t = st.number_input("Null Proportion p0:")
+                if st.button("Run Linked Test"):
+                    zs = (p_hat - p0_t)/np.sqrt((p0_t*(1-p0_t))/n)
+                    if "Two" in h1: p = 2*(1-stats.norm.cdf(abs(zs))); crit = stats.norm.ppf(1-alpha_test/2)
+                    elif ">" in h1: p = 1-stats.norm.cdf(zs); crit = stats.norm.ppf(1-alpha_test)
+                    else: p = stats.norm.cdf(zs); crit = stats.norm.ppf(alpha_test)
+                    display_decision(p, alpha_test, zs, crit, h1)
+                    plot_statistics("z", zs, crit, alpha_test, h1, mode="Testing")
+
+# ---------------------------------------------------------
+# 2. HYPOTHESIS TESTING SECTION
+# ---------------------------------------------------------
+else:
+    st.header("🧪 Hypothesis Testing Mode")
+    test_param = st.selectbox("Select Parameter to Test:", ["Mean", "Variance", "Proportion"])
+    h1_type = st.radio("Alternative Hypothesis (H1):", ["Two-Tailed (≠)", "Right-Tailed (>)", "Left-Tailed (<)"])
+    alpha = st.number_input("Significance Level (α):", 0.01, 0.10, 0.05)
+
+    if test_param == "Mean":
+        mu0 = st.number_input("Null Mean (μ0):")
+        sigma_known = st.radio("Is Sigma (σ) Known?", ["Yes", "No"], key="ht_sigma")
+        input_way = st.radio("Input Method:", ["Summary Statistics", "Raw Data Input"], key="ht_in_way")
+        if input_way == "Summary Statistics":
+            x_bar, val, n = st.number_input("x̄:"), st.number_input("s or σ:"), st.number_input("n:", value=30)
+            std_dev = np.sqrt(val) if st.checkbox("Is Squared?") else val
+        else:
+            raw_m = st.radio("Format:", ["Values", "Sums"], key="ht_raw_m")
+            if raw_m == "Values":
+                txt = st.text_input("Data (comma separated):")
+                if txt: 
+                    data = [float(i) for i in txt.split(",")]
+                    n = len(data); sx = sum(data); sx2 = sum([i**2 for i in data])
+                    x_bar = sx/n; s_sq = (sx2 - (sx**2/n))/(n-1); std_dev = np.sqrt(s_sq)
+                else: st.stop()
+            else:
+                sx, sx2, n = st.number_input("Σx:"), st.number_input("Σx²:"), st.number_input("n:", value=10)
+                x_bar = sx/n; s_sq = (sx2 - (sx**2/n))/(n-1); std_dev = np.sqrt(s_sq)
+
+        if st.button("Run Mean Test"):
+            dist = "z" if (sigma_known=="Yes" or n>=30) else "t"; z_t = (x_bar - mu0)/(std_dev/np.sqrt(n)); df = n-1 if dist=="t" else None
+            if "Two" in h1_type: 
+                p = 2*(1-stats.norm.cdf(abs(z_t))) if dist=="z" else 2*(1-stats.t.cdf(abs(z_t), df))
+                crit = stats.norm.ppf(1-alpha/2) if dist=="z" else stats.t.ppf(1-alpha/2, df)
+            elif ">" in h1_type: 
+                p = 1-stats.norm.cdf(z_t) if dist=="z" else 1-stats.t.cdf(z_t, df)
+                crit = stats.norm.ppf(1-alpha) if dist=="z" else stats.t.ppf(1-alpha, df)
+            else: 
+                p = stats.norm.cdf(z_t) if dist=="z" else stats.t.cdf(z_t, df)
+                crit = stats.norm.ppf(alpha) if dist=="z" else stats.t.ppf(alpha, df)
+            display_decision(p, alpha, z_t, crit, h1_type)
+            plot_statistics(dist, z_t, crit, alpha, h1_type, df, mode="Testing")
+
+    elif test_param == "Variance":
+        sigma0_sq = st.number_input("Hypothesized σ₀²:")
+        v_in = st.radio("Input Method:", ["Summary", "Raw Data Input"], key="ht_v_in")
+        if v_in == "Summary":
+            v_val, n = st.number_input("s:"), st.number_input("n:", value=10)
+            s_sq = v_val if st.checkbox("Is Squared?") else v_val**2
+        else:
+            raw_m = st.radio("Format:", ["Values", "Sums"], key="ht_v_raw")
+            if raw_m == "Values":
+                txt = st.text_input("Data:"); 
+                if txt: 
+                    data = [float(i) for i in txt.split(",")]
+                    n = len(data); sx = sum(data); sx2 = sum([i**2 for i in data])
+                    s_sq = (sx2 - (sx**2/n))/(n-1)
+                else: st.stop()
+            else:
+                sx, sx2, n = st.number_input("Σx:"), st.number_input("Σx²:"), st.number_input("n:", value=10)
+                s_sq = (sx2 - (sx**2/n))/(n-1)
+
+        if st.button("Run Variance Test"):
+            chi = ((n-1)*s_sq)/sigma0_sq
+            p = 1-stats.chi2.cdf(chi, n-1) if ">" in h1_type else stats.chi2.cdf(chi, n-1)
+            crit = stats.chi2.ppf(1-alpha if ">" in h1_type else alpha, n-1)
+            display_decision(p, alpha, chi, crit, h1_type)
+            plot_statistics("chi2", chi, crit, alpha, h1_type, n-1, mode="Testing")
+
+    elif test_param == "Proportion":
+        p_hat_meth_ht = st.radio("Provide p̂:", ["Directly", "From x and n"], key="ht_prop_meth")
+        if p_hat_meth_ht == "Directly":
+            p_hat = st.number_input("p̂:", 0.0, 1.0, step=0.01)
+            n = st.number_input("n:", min_value=1, value=100)
+        else:
+            x_count = st.number_input("x:", min_value=0)
+            n = st.number_input("n:", min_value=1, value=100)
+            p_hat = x_count / n if n > 0 else 0
+            
+        p0 = st.number_input("p0 (Null):", 0.0, 1.0)
+        
+        if st.button("Run Proportion Test"):
+            zs = (p_hat - p0)/np.sqrt((p0*(1-p0))/n)
+            if "Two" in h1_type: p = 2*(1-stats.norm.cdf(abs(zs))); crit = stats.norm.ppf(1-alpha/2)
+            elif ">" in h1_type: p = 1-stats.norm.cdf(zs); crit = stats.norm.ppf(1-alpha)
+            else: p = stats.norm.cdf(zs); crit = stats.norm.ppf(alpha)
+            display_decision(p, alpha, zs, crit, h1_type)
+            plot_statistics("z", zs, crit, alpha, h1_type, mode="Testing")
