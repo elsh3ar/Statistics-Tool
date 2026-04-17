@@ -3,8 +3,27 @@ import numpy as np
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 
+# ---    streamlit run p.py   ---
+
+
+
+
+# ---    https://statistics-tool-2gnsqckaeejxn5qxhmyte2.streamlit.app/   ---
+
+
+
+
+
 # --- Page Configuration ---
 st.set_page_config(page_title="Statistics Tool - Dr. Mohamed Sobh ", layout="wide")
+
+st.markdown("""
+<style>
+.stApp {
+    background-color: dimgray;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # --- Header Section ---
 def draw_header():
@@ -20,9 +39,13 @@ def draw_header():
 
 draw_header()
 
+
 # --- Advanced Plotting Engine (Fixed Two-Tailed Visualization) ---
 def plot_statistics(dist_type, test_stat, critical_val, alpha, tail_type, df=None, mode="Testing"):
     fig, ax = plt.subplots(figsize=(12, 6))
+    plt.style.use('seaborn-v0_8-whitegrid')
+    fig.patch.set_facecolor('#F0F4F8')
+    ax.set_facecolor('#F8FAFC')
     
     # 1. Define Distribution Range
     if dist_type == "z":
@@ -39,38 +62,38 @@ def plot_statistics(dist_type, test_stat, critical_val, alpha, tail_type, df=Non
         y = stats.chi2.pdf(x, df)
         dist_label = f"Chi-Square Distribution (df={df})"
 
-    ax.plot(x, y, 'black', lw=2, label=dist_label)
+    ax.plot(x, y, '#1A237E', lw=2.5, label=dist_label)
     
     # 2. Fix: Visualization for Two-Tailed and One-Tailed
     if "Two" in tail_type:
         cv = abs(critical_val)
         # Shading both sides
-        ax.fill_between(x, y, where=(x > cv), color='red', alpha=0.4, label='Rejection Region' if mode=="Testing" else "Outside CI")
-        ax.fill_between(x, y, where=(x < -cv), color='red', alpha=0.4)
+        ax.fill_between(x, y, where=(x > cv), color='#8E44AD', alpha=0.45, label='Rejection Region' if mode=="Testing" else "Outside CI")
+        ax.fill_between(x, y, where=(x < -cv), color='#8E44AD', alpha=0.45)
         # Drawing both critical lines
-        ax.axvline(cv, color='red', linestyle='--', lw=2)
-        ax.axvline(-cv, color='red', linestyle='--', lw=2)
+        ax.axvline(cv, color='#8E44AD', linestyle='--', lw=2)
+        ax.axvline(-cv, color='#8E44AD', linestyle='--', lw=2)
         # Adding labels for both numbers
-        ax.text(cv, max(y)*0.2, f'+{cv:.3f}', color='red', fontweight='bold', ha='left')
-        ax.text(-cv, max(y)*0.2, f'-{cv:.3f}', color='red', fontweight='bold', ha='right')
+        ax.text(cv, max(y)*0.2, f'+{cv:.3f}', color='#8E44AD', fontweight='bold', ha='left')
+        ax.text(-cv, max(y)*0.2, f'-{cv:.3f}', color='#8E44AD', fontweight='bold', ha='right')
         
     elif "Right" in tail_type or ">" in tail_type:
-        ax.fill_between(x, y, where=(x > critical_val), color='red', alpha=0.4, label='Rejection Region' if mode=="Testing" else "Outside CI")
-        ax.axvline(critical_val, color='red', linestyle='--', lw=2)
-        ax.text(critical_val, max(y)*0.2, f'{critical_val:.3f}', color='red', fontweight='bold', ha='left')
+        ax.fill_between(x, y, where=(x > critical_val), color='#8E44AD', alpha=0.45, label='Rejection Region' if mode=="Testing" else "Outside CI")
+        ax.axvline(critical_val, color='#8E44AD', linestyle='--', lw=2)
+        ax.text(critical_val, max(y)*0.2, f'{critical_val:.3f}', color='#8E44AD', fontweight='bold', ha='left')
         
     elif "Left" in tail_type or "<" in tail_type:
-        ax.fill_between(x, y, where=(x < critical_val), color='red', alpha=0.4, label='Rejection Region' if mode=="Testing" else "Outside CI")
-        ax.axvline(critical_val, color='red', linestyle='--', lw=2)
-        ax.text(critical_val, max(y)*0.2, f'{critical_val:.3f}', color='red', fontweight='bold', ha='right')
+        ax.fill_between(x, y, where=(x < critical_val), color='#8E44AD', alpha=0.45, label='Rejection Region' if mode=="Testing" else "Outside CI")
+        ax.axvline(critical_val, color='#8E44AD', linestyle='--', lw=2)
+        ax.text(critical_val, max(y)*0.2, f'{critical_val:.3f}', color='#8E44AD', fontweight='bold', ha='right')
 
     # 3. Mark Test Statistic
     if mode == "Testing":
-        ax.axvline(test_stat, color='green', linestyle='-', lw=3, label=f'Test Stat: {test_stat:.3f}')
-        ax.scatter([test_stat], [0.005], color='green', s=100, zorder=5)
+        ax.axvline(test_stat, color='#E67E22', linestyle='-.', lw=3, label=f'Test Stat: {test_stat:.3f}')
+        ax.scatter([test_stat], [0.005], color='#E67E22', s=150, marker='D', zorder=5)
         # Indicate decision visually
         ax.annotate(f'Test Value: {test_stat:.2f}', xy=(test_stat, 0.01), xytext=(test_stat, max(y)*0.8),
-                     arrowprops=dict(facecolor='green', shrink=0.05), color='green', fontweight='bold', ha='center')
+                     arrowprops=dict(facecolor='#E67E22', shrink=0.05), color='#E67E22', fontweight='bold', ha='center')
     
     ax.set_title(f"Statistical Distribution Plot ({tail_type})", fontsize=15)
     ax.set_xlabel("Value")
@@ -100,7 +123,7 @@ main_choice = st.radio("Select Process:", ["Confidence Interval", "Hypothesis Te
 # 1. CONFIDENCE INTERVAL SECTION
 # ---------------------------------------------------------
 if main_choice == "Confidence Interval":
-    st.header("📍 Confidence Interval Mode")
+    st.header("🎯 Confidence Interval Mode")
     param = st.selectbox("Select Parameter:", ["Mean", "Variance", "Proportion"])
     n, x_bar, std_dev, s_sq, p_hat, calculated = 0, 0, 0, 0, 0, False
 
@@ -179,7 +202,7 @@ if main_choice == "Confidence Interval":
 
     if calculated:
         st.divider()
-        if st.checkbox("🔗 Link to Hypothesis Test"):
+        if st.checkbox("⚡ Link to Hypothesis Test"):
             h1 = st.radio("H1:", ["Two-Tailed (≠)", "Right-Tailed (>)", "Left-Tailed (<)"], horizontal=True)
             alpha_test = st.number_input("Significance α:", 0.01, 0.10, 0.05, key="link_alpha")
             
@@ -223,7 +246,7 @@ if main_choice == "Confidence Interval":
 # 2. HYPOTHESIS TESTING SECTION
 # ---------------------------------------------------------
 else:
-    st.header("🧪 Hypothesis Testing Mode")
+    st.header("🔬 Hypothesis Testing Mode")
     test_param = st.selectbox("Select Parameter to Test:", ["Mean", "Variance", "Proportion"])
     h1_type = st.radio("Alternative Hypothesis (H1):", ["Two-Tailed (≠)", "Right-Tailed (>)", "Left-Tailed (<)"])
     alpha = st.number_input("Significance Level (α):", 0.01, 0.10, 0.05)
