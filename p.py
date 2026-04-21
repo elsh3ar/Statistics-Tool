@@ -41,13 +41,53 @@ draw_header()
 
 
 # --- Advanced Plotting Engine (Fixed Two-Tailed Visualization) ---
-def plot_statistics(dist_type, test_stat, critical_val, alpha, tail_type, df=None, mode="Testing"):
+def plot_statistics(dist_type, test_stat, critical_val, alpha, tail_type, df=None, mode="Testing", ci_lower=None, ci_upper=None, ci_crit_low=None):
     fig, ax = plt.subplots(figsize=(12, 6))
     plt.style.use('seaborn-v0_8-whitegrid')
     fig.patch.set_facecolor('#F0F4F8')
     ax.set_facecolor('#F8FAFC')
-    
-    # 1. Define Distribution Range
+
+    # ── CI MODE ────────────────────────────────────────────────────────────
+    if mode == "CI" and ci_lower is not None and ci_upper is not None:
+
+        if dist_type in ("z", "t"):
+            center = (ci_lower + ci_upper) / 2
+            se     = (ci_upper - ci_lower) / (2 * abs(critical_val))
+            x = np.linspace(center - 4*se, center + 4*se, 1000)
+            y = stats.norm.pdf(x, center, se) if dist_type == "z" else stats.t.pdf((x - center)/se, df)/se
+            dist_label = "Sampling Distribution (Z)" if dist_type == "z" else f"Sampling Distribution (t, df={df})"
+
+        else:  # chi2
+            c1 = ci_crit_low
+            c2 = critical_val
+            upper_limit = max(30, c2 * 1.5)
+            x = np.linspace(0, upper_limit, 1000)
+            y = stats.chi2.pdf(x, df)
+            dist_label = f"Chi-Square Distribution (df={df})"
+
+        ax.plot(x, y, '#1A237E', lw=2.5, label=dist_label)
+
+        if dist_type in ("z", "t"):
+            ax.fill_between(x, y, where=((x >= ci_lower) & (x <= ci_upper)), color='#27AE60', alpha=0.35, label='Confidence Interval Region')
+            ax.axvline(ci_lower, color='#8E44AD', linestyle='--', lw=2)
+            ax.axvline(ci_upper, color='#8E44AD', linestyle='--', lw=2)
+            ax.text(ci_lower, max(y)*0.2, f'{ci_lower:.4f}', color='#8E44AD', fontweight='bold', ha='right')
+            ax.text(ci_upper, max(y)*0.2, f'{ci_upper:.4f}', color='#8E44AD', fontweight='bold', ha='left')
+        else:
+            ax.fill_between(x, y, where=((x >= c1) & (x <= c2)), color='#27AE60', alpha=0.35, label='Confidence Interval Region')
+            ax.axvline(c1, color='#8E44AD', linestyle='--', lw=2)
+            ax.axvline(c2, color='#8E44AD', linestyle='--', lw=2)
+            ax.text(c1, max(y)*0.2, f'{ci_upper:.4f}', color='#8E44AD', fontweight='bold', ha='right')
+            ax.text(c2, max(y)*0.2, f'{ci_lower:.4f}', color='#8E44AD', fontweight='bold', ha='left')
+
+        ax.set_title(f"Confidence Interval Plot", fontsize=15)
+        ax.set_xlabel("Value")
+        ax.set_ylabel("Density")
+        ax.legend()
+        st.pyplot(fig)
+        return
+
+    # ── TESTING MODE (unchanged) ───────────────────────────────────────────
     if dist_type == "z":
         x = np.linspace(-4, 4, 1000)
         y = stats.norm.pdf(x, 0, 1)
@@ -56,45 +96,36 @@ def plot_statistics(dist_type, test_stat, critical_val, alpha, tail_type, df=Non
         x = np.linspace(-4, 4, 1000)
         y = stats.t.pdf(x, df)
         dist_label = f"t-Distribution (df={df})"
-    else: # Chi-Square
+    else:
         upper_limit = max(30, (critical_val if critical_val else 10) * 1.5)
         x = np.linspace(0, upper_limit, 1000)
         y = stats.chi2.pdf(x, df)
         dist_label = f"Chi-Square Distribution (df={df})"
 
     ax.plot(x, y, '#1A237E', lw=2.5, label=dist_label)
-    
-    # 2. Fix: Visualization for Two-Tailed and One-Tailed
+
     if "Two" in tail_type:
         cv = abs(critical_val)
-        # Shading both sides
-        ax.fill_between(x, y, where=(x > cv), color='#8E44AD', alpha=0.45, label='Rejection Region' if mode=="Testing" else "Outside CI")
+        ax.fill_between(x, y, where=(x >  cv), color='#8E44AD', alpha=0.45, label='Rejection Region')
         ax.fill_between(x, y, where=(x < -cv), color='#8E44AD', alpha=0.45)
-        # Drawing both critical lines
-        ax.axvline(cv, color='#8E44AD', linestyle='--', lw=2)
+        ax.axvline( cv, color='#8E44AD', linestyle='--', lw=2)
         ax.axvline(-cv, color='#8E44AD', linestyle='--', lw=2)
-        # Adding labels for both numbers
-        ax.text(cv, max(y)*0.2, f'+{cv:.3f}', color='#8E44AD', fontweight='bold', ha='left')
+        ax.text( cv, max(y)*0.2, f'+{cv:.3f}', color='#8E44AD', fontweight='bold', ha='left')
         ax.text(-cv, max(y)*0.2, f'-{cv:.3f}', color='#8E44AD', fontweight='bold', ha='right')
-        
     elif "Right" in tail_type or ">" in tail_type:
-        ax.fill_between(x, y, where=(x > critical_val), color='#8E44AD', alpha=0.45, label='Rejection Region' if mode=="Testing" else "Outside CI")
+        ax.fill_between(x, y, where=(x > critical_val), color='#8E44AD', alpha=0.45, label='Rejection Region')
         ax.axvline(critical_val, color='#8E44AD', linestyle='--', lw=2)
         ax.text(critical_val, max(y)*0.2, f'{critical_val:.3f}', color='#8E44AD', fontweight='bold', ha='left')
-        
     elif "Left" in tail_type or "<" in tail_type:
-        ax.fill_between(x, y, where=(x < critical_val), color='#8E44AD', alpha=0.45, label='Rejection Region' if mode=="Testing" else "Outside CI")
+        ax.fill_between(x, y, where=(x < critical_val), color='#8E44AD', alpha=0.45, label='Rejection Region')
         ax.axvline(critical_val, color='#8E44AD', linestyle='--', lw=2)
         ax.text(critical_val, max(y)*0.2, f'{critical_val:.3f}', color='#8E44AD', fontweight='bold', ha='right')
 
-    # 3. Mark Test Statistic
-    if mode == "Testing":
-        ax.axvline(test_stat, color='#E67E22', linestyle='-.', lw=3, label=f'Test Stat: {test_stat:.3f}')
-        ax.scatter([test_stat], [0.005], color='#E67E22', s=150, marker='D', zorder=5)
-        # Indicate decision visually
-        ax.annotate(f'Test Value: {test_stat:.2f}', xy=(test_stat, 0.01), xytext=(test_stat, max(y)*0.8),
-                     arrowprops=dict(facecolor='#E67E22', shrink=0.05), color='#E67E22', fontweight='bold', ha='center')
-    
+    ax.axvline(test_stat, color='#E67E22', linestyle='-.', lw=3, label=f'Test Stat: {test_stat:.3f}')
+    ax.scatter([test_stat], [0.005], color='#E67E22', s=150, marker='D', zorder=5)
+    ax.annotate(f'Test Value: {test_stat:.2f}', xy=(test_stat, 0.01), xytext=(test_stat, max(y)*0.8),
+                 arrowprops=dict(facecolor='#E67E22', shrink=0.05), color='#E67E22', fontweight='bold', ha='center')
+
     ax.set_title(f"Statistical Distribution Plot ({tail_type})", fontsize=15)
     ax.set_xlabel("Value")
     ax.set_ylabel("Density")
@@ -154,7 +185,7 @@ if main_choice == "Confidence Interval":
             crit = stats.norm.ppf(1-alpha/2) if use_dist=="z" else stats.t.ppf(1-alpha/2, n-1)
             margin = crit * (std_dev / np.sqrt(n))
             st.success(f"CI: ({x_bar - margin:.4f} , {x_bar + margin:.4f})")
-            plot_statistics(use_dist, x_bar, crit, alpha, "Two-Tailed", df=n-1 if use_dist=="t" else None, mode="CI")
+            plot_statistics(use_dist, x_bar, crit, alpha, "Two-Tailed", df=n-1 if use_dist=="t" else None, mode="CI", ci_lower=x_bar - margin, ci_upper=x_bar + margin)
             calculated = True
 
     elif param == "Variance":
@@ -179,7 +210,7 @@ if main_choice == "Confidence Interval":
         if st.button("Calculate CI"):
             alpha = 1-cl; c1, c2 = stats.chi2.ppf(alpha/2, n-1), stats.chi2.ppf(1-alpha/2, n-1)
             st.success(f"Variance CI: ({((n-1)*s_sq)/c2:.4f} , {((n-1)*s_sq)/c1:.4f})")
-            plot_statistics("chi2", s_sq, c2, alpha, "Right-Tailed", df=n-1, mode="CI")
+            plot_statistics("chi2", s_sq, c2, alpha, "Right-Tailed", df=n-1, mode="CI", ci_lower=((n-1)*s_sq)/c2, ci_upper=((n-1)*s_sq)/c1, ci_crit_low=c1)
             calculated = True
 
     elif param == "Proportion":
@@ -197,7 +228,7 @@ if main_choice == "Confidence Interval":
             alpha = 1-cl; crit = stats.norm.ppf(1-alpha/2)
             margin = crit * np.sqrt((p_hat*(1-p_hat))/n)
             st.success(f"Proportion CI: ({p_hat - margin:.4f} , {p_hat + margin:.4f})")
-            plot_statistics("z", p_hat, crit, alpha, "Two-Tailed", mode="CI")
+            plot_statistics("z", p_hat, crit, alpha, "Two-Tailed", mode="CI", ci_lower=p_hat - margin, ci_upper=p_hat + margin)
             calculated = True
 
     if calculated:
