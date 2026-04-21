@@ -184,8 +184,15 @@ if main_choice == "Confidence Interval":
             alpha = 1-cl; use_dist = "z" if (sigma_known=="Yes" or n>=30) else "t"
             crit = stats.norm.ppf(1-alpha/2) if use_dist=="z" else stats.t.ppf(1-alpha/2, n-1)
             margin = crit * (std_dev / np.sqrt(n))
-            st.success(f"CI: ({x_bar - margin:.4f} , {x_bar + margin:.4f})")
-            plot_statistics(use_dist, x_bar, crit, alpha, "Two-Tailed", df=n-1 if use_dist=="t" else None, mode="CI", ci_lower=x_bar - margin, ci_upper=x_bar + margin)
+            lower, upper = x_bar - margin, x_bar + margin
+            st.success(f"CI: ({lower:.4f} , {upper:.4f})")
+            col_plot, col_vals = st.columns([4, 1])
+            with col_plot:
+                plot_statistics(use_dist, x_bar, crit, alpha, "Two-Tailed", df=n-1 if use_dist=="t" else None, mode="CI", ci_lower=lower, ci_upper=upper)
+            with col_vals:
+                st.metric("Lower Bound", f"{lower:.4f}")
+                st.metric("Upper Bound", f"{upper:.4f}")
+                st.metric("Critical Value", f"± {crit:.4f}")
             calculated = True
 
     elif param == "Variance":
@@ -209,8 +216,16 @@ if main_choice == "Confidence Interval":
         cl = st.slider("Confidence Level:", 0.80, 0.99, 0.95)
         if st.button("Calculate CI"):
             alpha = 1-cl; c1, c2 = stats.chi2.ppf(alpha/2, n-1), stats.chi2.ppf(1-alpha/2, n-1)
-            st.success(f"Variance CI: ({((n-1)*s_sq)/c2:.4f} , {((n-1)*s_sq)/c1:.4f})")
-            plot_statistics("chi2", s_sq, c2, alpha, "Right-Tailed", df=n-1, mode="CI", ci_lower=((n-1)*s_sq)/c2, ci_upper=((n-1)*s_sq)/c1, ci_crit_low=c1)
+            lower, upper = ((n-1)*s_sq)/c2, ((n-1)*s_sq)/c1
+            st.success(f"Variance CI: ({lower:.4f} , {upper:.4f})")
+            col_plot, col_vals = st.columns([4, 1])
+            with col_plot:
+                plot_statistics("chi2", s_sq, c2, alpha, "Right-Tailed", df=n-1, mode="CI", ci_lower=lower, ci_upper=upper, ci_crit_low=c1)
+            with col_vals:
+                st.metric("Lower Bound", f"{lower:.4f}")
+                st.metric("Upper Bound", f"{upper:.4f}")
+                st.metric("χ² Lower (c1)", f"{c1:.4f}")
+                st.metric("χ² Upper (c2)", f"{c2:.4f}")
             calculated = True
 
     elif param == "Proportion":
@@ -227,8 +242,15 @@ if main_choice == "Confidence Interval":
         if st.button("Calculate CI"):
             alpha = 1-cl; crit = stats.norm.ppf(1-alpha/2)
             margin = crit * np.sqrt((p_hat*(1-p_hat))/n)
-            st.success(f"Proportion CI: ({p_hat - margin:.4f} , {p_hat + margin:.4f})")
-            plot_statistics("z", p_hat, crit, alpha, "Two-Tailed", mode="CI", ci_lower=p_hat - margin, ci_upper=p_hat + margin)
+            lower, upper = p_hat - margin, p_hat + margin
+            st.success(f"Proportion CI: ({lower:.4f} , {upper:.4f})")
+            col_plot, col_vals = st.columns([4, 1])
+            with col_plot:
+                plot_statistics("z", p_hat, crit, alpha, "Two-Tailed", mode="CI", ci_lower=lower, ci_upper=upper)
+            with col_vals:
+                st.metric("Lower Bound", f"{lower:.4f}")
+                st.metric("Upper Bound", f"{upper:.4f}")
+                st.metric("Critical Value", f"± {crit:.4f}")
             calculated = True
 
     if calculated:
