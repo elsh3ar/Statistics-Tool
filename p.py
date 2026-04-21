@@ -193,6 +193,25 @@ if main_choice == "Confidence Interval":
                 st.metric("Lower Bound", f"{lower:.4f}")
                 st.metric("Upper Bound", f"{upper:.4f}")
                 st.metric("Critical Value", f"± {crit:.4f}")
+                st.divider()
+                st.markdown("**خطوات الحل:**")
+                st.markdown(f"**1.** α = 1 - CL")
+                st.markdown(f"α = 1 - {cl} = **{alpha:.4f}**")
+                st.markdown(f"**2.** القيمة الحرجة")
+                if use_dist == "z":
+                    st.markdown(f"z(α/2) = **±{crit:.4f}**")
+                else:
+                    st.markdown(f"t(α/2,{int(n-1)}) = **±{crit:.4f}**")
+                st.markdown(f"**3.** هامش الخطأ E")
+                if use_dist == "z":
+                    st.markdown(f"E = z × σ/√n")
+                else:
+                    st.markdown(f"E = t × s/√n")
+                st.markdown(f"E = {crit:.4f} × {std_dev:.4f}/√{int(n)}")
+                st.markdown(f"E = **{margin:.4f}**")
+                st.markdown(f"**4.** الفترة = x̄ ± E")
+                st.markdown(f"= {x_bar:.4f} ± {margin:.4f}")
+                st.markdown(f"= (**{lower:.4f}** , **{upper:.4f}**)")
             calculated = True
 
     elif param == "Variance":
@@ -226,6 +245,22 @@ if main_choice == "Confidence Interval":
                 st.metric("Upper Bound", f"{upper:.4f}")
                 st.metric("χ² Lower (c1)", f"{c1:.4f}")
                 st.metric("χ² Upper (c2)", f"{c2:.4f}")
+                st.divider()
+                st.markdown("**خطوات الحل:**")
+                st.markdown(f"**1.** α = 1 - CL")
+                st.markdown(f"α = 1 - {cl} = **{alpha:.4f}**")
+                st.markdown(f"**2.** القيم الحرجة")
+                st.markdown(f"c1 = χ²(α/2, n-1)")
+                st.markdown(f"= χ²({alpha/2:.4f}, {int(n-1)}) = **{c1:.4f}**")
+                st.markdown(f"c2 = χ²(1-α/2, n-1)")
+                st.markdown(f"= χ²({1-alpha/2:.4f}, {int(n-1)}) = **{c2:.4f}**")
+                st.markdown(f"**3.** القانون:")
+                st.markdown(f"( (n-1)s² / c2 , (n-1)s² / c1 )")
+                st.markdown(f"**4.** التعويض:")
+                st.markdown(f"({int(n-1)} × {s_sq:.4f} / {c2:.4f})")
+                st.markdown(f"= **{lower:.4f}**")
+                st.markdown(f"({int(n-1)} × {s_sq:.4f} / {c1:.4f})")
+                st.markdown(f"= **{upper:.4f}**")
             calculated = True
 
     elif param == "Proportion":
@@ -251,6 +286,19 @@ if main_choice == "Confidence Interval":
                 st.metric("Lower Bound", f"{lower:.4f}")
                 st.metric("Upper Bound", f"{upper:.4f}")
                 st.metric("Critical Value", f"± {crit:.4f}")
+                st.divider()
+                st.markdown("**خطوات الحل:**")
+                st.markdown(f"**1.** α = 1 - CL")
+                st.markdown(f"α = 1 - {cl} = **{alpha:.4f}**")
+                st.markdown(f"**2.** القيمة الحرجة")
+                st.markdown(f"z(α/2) = **±{crit:.4f}**")
+                st.markdown(f"**3.** هامش الخطأ E")
+                st.markdown(f"E = z × √(p̂(1-p̂)/n)")
+                st.markdown(f"E = {crit:.4f} × √({p_hat:.4f}×{1-p_hat:.4f}/{int(n)})")
+                st.markdown(f"E = **{margin:.4f}**")
+                st.markdown(f"**4.** الفترة = p̂ ± E")
+                st.markdown(f"= {p_hat:.4f} ± {margin:.4f}")
+                st.markdown(f"= (**{lower:.4f}** , **{upper:.4f}**)")
             calculated = True
 
     if calculated:
@@ -300,7 +348,7 @@ if main_choice == "Confidence Interval":
 # ---------------------------------------------------------
 else:
     st.header("🔬 Hypothesis Testing Mode")
-    test_param = st.selectbox("Select Parameter to Test:", ["Mean", "Variance", "Proportion"])
+    test_param = st.selectbox("Select Parameter to Test:", ["Mean", "Variance", "Proportion", "Two Means"])
     h1_type = st.radio("Alternative Hypothesis (H1):", ["Two-Tailed (≠)", "Right-Tailed (>)", "Left-Tailed (<)"])
     alpha = st.number_input("Significance Level (α):", 0.01, 0.10, 0.05)
 
@@ -383,3 +431,130 @@ else:
             else: p = stats.norm.cdf(zs); crit = stats.norm.ppf(alpha)
             display_decision(p, alpha, zs, crit, h1_type)
             plot_statistics("z", zs, crit, alpha, h1_type, mode="Testing")
+
+
+    elif test_param == "Two Means":
+        st.markdown("#### Testing the Difference Between Two Means")
+        sigma_known_2 = st.radio("Are σ1 and σ2 Known?", ["Yes (Z-test)", "No (T-test)"], key="tm_sigma")
+
+        st.markdown("**Sample 1:**")
+        col1, col2, col3 = st.columns(3)
+        with col1: x_bar1 = st.number_input("x̄₁:", key="tm_xbar1")
+        with col2: n1 = st.number_input("n₁:", min_value=2, value=10, key="tm_n1")
+        with col3:
+            val1 = st.number_input("σ₁ or s₁:", value=1.0, key="tm_s1")
+            is_sq1 = st.checkbox("Squared?", key="tm_sq1")
+            s1 = np.sqrt(val1) if is_sq1 else val1
+
+        st.markdown("**Sample 2:**")
+        col1, col2, col3 = st.columns(3)
+        with col1: x_bar2 = st.number_input("x̄₂:", key="tm_xbar2")
+        with col2: n2 = st.number_input("n₂:", min_value=2, value=10, key="tm_n2")
+        with col3:
+            val2 = st.number_input("σ₂ or s₂:", value=1.0, key="tm_s2")
+            is_sq2 = st.checkbox("Squared?", key="tm_sq2")
+            s2 = np.sqrt(val2) if is_sq2 else val2
+
+        if st.button("Run Two Means Test"):
+            if sigma_known_2 == "Yes (Z-test)":
+                # Z-test: σ1 σ2 known
+                dist_tm = "z"
+                df_tm = None
+                test_val = (x_bar1 - x_bar2) / np.sqrt((s1**2/n1) + (s2**2/n2))
+                method_label = "Z-test (σ known)"
+                sp = None
+                ratio = None
+            else:
+                # T-test: σ unknown
+                ratio = s1 / s2
+                if 0.5 <= ratio <= 2:
+                    # Equal variances → pooled
+                    sp_sq = ((n1-1)*s1**2 + (n2-1)*s2**2) / (n1+n2-2)
+                    sp = np.sqrt(sp_sq)
+                    df_tm = int(n1 + n2 - 2)
+                    test_val = (x_bar1 - x_bar2) / (sp * np.sqrt(1/n1 + 1/n2))
+                    method_label = f"T-test (σ1=σ2, pooled, df={df_tm})"
+                else:
+                    # Unequal variances
+                    sp = None
+                    sp_sq = None
+                    df_tm = int(min(n1-1, n2-1))
+                    test_val = (x_bar1 - x_bar2) / np.sqrt((s1**2/n1) + (s2**2/n2))
+                    method_label = f"T-test (σ1≠σ2, df={df_tm})"
+                dist_tm = "t"
+
+            # Critical value & p-value
+            if dist_tm == "z":
+                if "Two" in h1_type:
+                    crit_tm = stats.norm.ppf(1-alpha/2)
+                    p_tm = 2*(1-stats.norm.cdf(abs(test_val)))
+                elif ">" in h1_type:
+                    crit_tm = stats.norm.ppf(1-alpha)
+                    p_tm = 1-stats.norm.cdf(test_val)
+                else:
+                    crit_tm = stats.norm.ppf(alpha)
+                    p_tm = stats.norm.cdf(test_val)
+            else:
+                if "Two" in h1_type:
+                    crit_tm = stats.t.ppf(1-alpha/2, df_tm)
+                    p_tm = 2*(1-stats.t.cdf(abs(test_val), df_tm))
+                elif ">" in h1_type:
+                    crit_tm = stats.t.ppf(1-alpha, df_tm)
+                    p_tm = 1-stats.t.cdf(test_val, df_tm)
+                else:
+                    crit_tm = stats.t.ppf(alpha, df_tm)
+                    p_tm = stats.t.cdf(test_val, df_tm)
+
+            st.info(f"Method used: **{method_label}**")
+            display_decision(p_tm, alpha, test_val, crit_tm, h1_type)
+
+            col_plot, col_vals = st.columns([4, 1])
+            with col_plot:
+                plot_statistics(dist_tm, test_val, crit_tm, alpha, h1_type, df_tm, mode="Testing")
+            with col_vals:
+                st.metric("Test Statistic", f"{test_val:.4f}")
+                st.metric("Critical Value", f"±{abs(crit_tm):.4f}" if "Two" in h1_type else f"{crit_tm:.4f}")
+                st.metric("P-Value", f"{p_tm:.4f}")
+                st.divider()
+                st.markdown("**خطوات الحل:**")
+                st.markdown(f"**H₀:** μ₁ = μ₂")
+                if "Two" in h1_type:   st.markdown(f"**H₁:** μ₁ ≠ μ₂")
+                elif ">" in h1_type:   st.markdown(f"**H₁:** μ₁ > μ₂")
+                else:                  st.markdown(f"**H₁:** μ₁ < μ₂")
+                st.markdown(f"**α =** {alpha}")
+
+                if sigma_known_2 == "Yes (Z-test)":
+                    st.markdown("**القانون:**")
+                    st.markdown("Z = (x̄₁-x̄₂) / √(σ₁²/n₁ + σ₂²/n₂)")
+                    st.markdown(f"= ({x_bar1}-{x_bar2}) / √({s1**2:.4f}/{int(n1)} + {s2**2:.4f}/{int(n2)})")
+                    st.markdown(f"= **{test_val:.4f}**")
+                    if "Two" in h1_type:
+                        st.markdown(f"z(α/2) = z({alpha/2:.4f}) = **±{crit_tm:.4f}**")
+                    elif ">" in h1_type:
+                        st.markdown(f"z(α) = z({alpha}) = **{crit_tm:.4f}**")
+                    else:
+                        st.markdown(f"z(α) = z({alpha}) = **{crit_tm:.4f}**")
+                else:
+                    st.markdown(f"s₁/s₂ = {s1:.4f}/{s2:.4f} = **{ratio:.4f}**")
+                    if 0.5 <= ratio <= 2:
+                        st.markdown("0.5 ≤ ratio ≤ 2 → σ₁ = σ₂ (Pooled)")
+                        st.markdown("**sp² = [(n₁-1)s₁²+(n₂-1)s₂²] / (n₁+n₂-2)**")
+                        sp_sq_val = ((n1-1)*s1**2 + (n2-1)*s2**2)/(n1+n2-2)
+                        st.markdown(f"= [{int(n1-1)}×{s1**2:.4f}+{int(n2-1)}×{s2**2:.4f}] / {int(n1+n2-2)}")
+                        st.markdown(f"sp² = **{sp_sq_val:.4f}** → sp = **{np.sqrt(sp_sq_val):.4f}**")
+                        st.markdown("**T = (x̄₁-x̄₂) / (sp×√(1/n₁+1/n₂))**")
+                        st.markdown(f"= ({x_bar1}-{x_bar2}) / ({np.sqrt(sp_sq_val):.4f}×√(1/{int(n1)}+1/{int(n2)}))")
+                        st.markdown(f"= **{test_val:.4f}**")
+                        st.markdown(f"df = n₁+n₂-2 = **{df_tm}**")
+                    else:
+                        st.markdown("ratio < 0.5 or > 2 → σ₁ ≠ σ₂")
+                        st.markdown("**T = (x̄₁-x̄₂) / √(s₁²/n₁ + s₂²/n₂)**")
+                        st.markdown(f"= ({x_bar1}-{x_bar2}) / √({s1**2:.4f}/{int(n1)} + {s2**2:.4f}/{int(n2)})")
+                        st.markdown(f"= **{test_val:.4f}**")
+                        st.markdown(f"df = min(n₁-1,n₂-1) = min({int(n1-1)},{int(n2-1)}) = **{df_tm}**")
+                    if "Two" in h1_type:
+                        st.markdown(f"t(α/2,{df_tm}) = **±{crit_tm:.4f}**")
+                    elif ">" in h1_type:
+                        st.markdown(f"t(α,{df_tm}) = **{crit_tm:.4f}**")
+                    else:
+                        st.markdown(f"t(α,{df_tm}) = **{crit_tm:.4f}**")
