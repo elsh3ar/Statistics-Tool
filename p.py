@@ -436,24 +436,45 @@ else:
     elif test_param == "Two Means":
         st.markdown("#### Testing the Difference Between Two Means")
         sigma_known_2 = st.radio("Are σ1 and σ2 Known?", ["Yes (Z-test)", "No (T-test)"], key="tm_sigma")
+        tm_input_way = st.radio("Input Method:", ["Summary Statistics", "Raw Data Input"], key="tm_input_way")
 
-        st.markdown("**Sample 1:**")
-        col1, col2, col3 = st.columns(3)
-        with col1: x_bar1 = st.number_input("x̄₁:", key="tm_xbar1")
-        with col2: n1 = st.number_input("n₁:", min_value=2, value=10, key="tm_n1")
-        with col3:
-            val1 = st.number_input("σ₁ or s₁:", value=1.0, key="tm_s1")
-            is_sq1 = st.checkbox("Squared?", key="tm_sq1")
-            s1 = np.sqrt(val1) if is_sq1 else val1
+        if tm_input_way == "Summary Statistics":
+            st.markdown("**Sample 1:**")
+            col1, col2, col3 = st.columns(3)
+            with col1: x_bar1 = st.number_input("x̄₁:", key="tm_xbar1")
+            with col2: n1 = st.number_input("n₁:", min_value=2, value=10, key="tm_n1")
+            with col3:
+                val1 = st.number_input("σ₁ or s₁:", value=1.0, key="tm_s1")
+                is_sq1 = st.checkbox("Squared?", key="tm_sq1")
+                s1 = np.sqrt(val1) if is_sq1 else val1
 
-        st.markdown("**Sample 2:**")
-        col1, col2, col3 = st.columns(3)
-        with col1: x_bar2 = st.number_input("x̄₂:", key="tm_xbar2")
-        with col2: n2 = st.number_input("n₂:", min_value=2, value=10, key="tm_n2")
-        with col3:
-            val2 = st.number_input("σ₂ or s₂:", value=1.0, key="tm_s2")
-            is_sq2 = st.checkbox("Squared?", key="tm_sq2")
-            s2 = np.sqrt(val2) if is_sq2 else val2
+            st.markdown("**Sample 2:**")
+            col1, col2, col3 = st.columns(3)
+            with col1: x_bar2 = st.number_input("x̄₂:", key="tm_xbar2")
+            with col2: n2 = st.number_input("n₂:", min_value=2, value=10, key="tm_n2")
+            with col3:
+                val2 = st.number_input("σ₂ or s₂:", value=1.0, key="tm_s2")
+                is_sq2 = st.checkbox("Squared?", key="tm_sq2")
+                s2 = np.sqrt(val2) if is_sq2 else val2
+
+        else:  # Raw Data Input
+            st.markdown("**Sample 1 - Data (comma separated):**")
+            raw1 = st.text_input("Data 1:", key="tm_raw1")
+            st.markdown("**Sample 2 - Data (comma separated):**")
+            raw2 = st.text_input("Data 2:", key="tm_raw2")
+            if raw1 and raw2:
+                data1 = [float(i) for i in raw1.split(",")]
+                data2 = [float(i) for i in raw2.split(",")]
+                n1 = len(data1); sx1 = sum(data1); sx1_2 = sum([i**2 for i in data1])
+                n2 = len(data2); sx2 = sum(data2); sx2_2 = sum([i**2 for i in data2])
+                x_bar1 = sx1 / n1
+                x_bar2 = sx2 / n2
+                s1 = np.sqrt((sx1_2 - (sx1**2 / n1)) / (n1 - 1))
+                s2 = np.sqrt((sx2_2 - (sx2**2 / n2)) / (n2 - 1))
+                st.info(f"Sample 1: n₁={n1}, x̄₁={x_bar1:.4f}, s₁={s1:.4f}")
+                st.info(f"Sample 2: n₂={n2}, x̄₂={x_bar2:.4f}, s₂={s2:.4f}")
+            else:
+                st.stop()
 
         if st.button("Run Two Means Test"):
             if sigma_known_2 == "Yes (Z-test)":
